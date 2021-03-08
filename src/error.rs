@@ -16,4 +16,6 @@ pub enum APRSError {
     InvalidLongitude(String),
     #[fail(display = "Invalid Message: {}", _0)]
     InvalidMessage(String),
+    #[fail(display = "Invalid Object: {}", _0)]
+    InvalidObject(String),
 }

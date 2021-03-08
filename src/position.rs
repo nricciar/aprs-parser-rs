@@ -10,6 +10,8 @@ pub struct APRSPosition {
     pub latitude: f32,
     pub longitude: f32,
     pub comment: String,
+    pub symbol_table: char,
+    pub symbol: char
 }
 
 impl FromStr for APRSPosition {
@@ -22,29 +24,54 @@ impl FromStr for APRSPosition {
 
         // strip leading type symbol and potential timestamp
         let s = if has_timestamp { &s[8..s.len()] } else { &s[1..s.len()] };
+        let bytes = s.as_bytes();
 
         // check for compressed position format
         let is_uncompressed_position = s.chars().take(1).all(|c| c.is_numeric());
         if !is_uncompressed_position {
-            return Err(APRSError::UnsupportedPositionFormat(s.to_owned()));
+            let body = &s[13..];
+
+            let lat1 = bytes[1] - 33;
+            let lat2 = bytes[2] - 33;
+            let lat3 = bytes[3] - 33;
+            let lat4 = bytes[4] - 33;
+
+            let lng1 = bytes[5] - 33;
+            let lng2 = bytes[6] - 33;
+            let lng3 = bytes[7] - 33;
+            let lng4 = bytes[8] - 33;
+
+            let latitude = 90.0 - (((lat1 as i32 * (91 * 91 * 91) + lat2 as i32 * (91 * 91) + lat3 as i32 * 91 + lat4 as i32) as f32) / 380926.0);
+            let longitude = -180.0 + (((lng1 as i32 * (91 * 91 * 91) + lng2 as i32 * (91 * 91) + lng3 as i32 * 91 + lng4 as i32) as f32) / 190463.0);
+
+            Ok(APRSPosition {
+                timestamp:None,
+                latitude,
+                longitude,
+                comment: body.to_owned(),
+                symbol_table: bytes[0] as char,
+                symbol: bytes[9] as char
+            })
+        } else {
+            if s.len() < 19 {
+                return Err(APRSError::InvalidPosition(s.to_owned()));
+            }
+
+            // parse position
+            let latitude = parse_latitude(&s[0..8])?;
+            let longitude = parse_longitude(&s[9..18])?;
+
+            let comment = &s[19..s.len()];
+
+            Ok(APRSPosition {
+                timestamp,
+                latitude,
+                longitude,
+                comment: comment.to_owned(),
+                symbol_table: bytes[8] as char,
+                symbol: bytes[18] as char
+            })
         }
-
-        if s.len() < 19 {
-            return Err(APRSError::InvalidPosition(s.to_owned()));
-        }
-
-        // parse position
-        let latitude = parse_latitude(&s[0..8])?;
-        let longitude = parse_longitude(&s[9..18])?;
-
-        let comment = &s[19..s.len()];
-
-        Ok(APRSPosition {
-            timestamp,
-            latitude,
-            longitude,
-            comment: comment.to_owned(),
-        })
     }
 }
 

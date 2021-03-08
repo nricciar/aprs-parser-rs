@@ -3,6 +3,9 @@ use std::str::FromStr;
 use APRSError;
 use Callsign;
 use APRSPosition;
+use APRSTelemetry;
+use APRSObject;
+use APRSStatusReport;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct APRSMessage {
@@ -35,8 +38,7 @@ impl FromStr for APRSMessage {
             via.push(Callsign::from_str(v)?);
         }
 
-        let data = APRSPosition::from_str(body).map(APRSData::Position)
-            .unwrap_or(APRSData::Unknown);
+        let data = APRSData::decode(&body);
 
         Ok(APRSMessage { from, to, via, data })
     }
@@ -45,9 +47,38 @@ impl FromStr for APRSMessage {
 #[derive(PartialEq, Debug, Clone)]
 pub enum APRSData {
     Position(APRSPosition),
+    Telemetry(APRSTelemetry),
+    Object(APRSObject),
+    StatusReport(APRSStatusReport),
     Unknown,
 }
 
+impl APRSData {
+    pub fn decode(data: &str) -> APRSData {
+        let is_position = data.starts_with('@') || data.starts_with('/') || data.starts_with('!') || data.starts_with('=');
+        let is_mic_e = data.starts_with('`') || data.starts_with('\'');
+        let is_object = data.starts_with(';');
+        let is_status_report = data.starts_with('>');
+
+        let data = 
+            if is_position {
+                APRSPosition::from_str(data).map(APRSData::Position)
+                    .unwrap_or(APRSData::Unknown)
+            } else if is_mic_e {
+                APRSTelemetry::from_str(data).map(APRSData::Telemetry)
+                    .unwrap_or(APRSData::Unknown)
+            } else if is_object {
+                APRSObject::from_str(data).map(APRSData::Object)
+                    .unwrap_or(APRSData::Unknown)
+            } else if is_status_report {
+                APRSStatusReport::from_str(data).map(APRSData::StatusReport)
+                    .unwrap_or(APRSData::Unknown)
+            } else {
+                APRSData::Unknown
+            };
+        data
+    }
+}
 
 #[cfg(test)]
 mod tests {

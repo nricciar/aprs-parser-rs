@@ -64,7 +64,10 @@ mod callsign;
 mod lonlat;
 mod message;
 mod position;
+mod telemetry;
 mod timestamp;
+mod object;
+mod status_report;
 
 use std::str::FromStr;
 
@@ -72,6 +75,9 @@ pub use error::APRSError;
 pub use callsign::Callsign;
 pub use message::{APRSMessage, APRSData};
 pub use position::APRSPosition;
+pub use telemetry::APRSTelemetry;
+pub use object::APRSObject;
+pub use status_report::APRSStatusReport;
 pub use timestamp::Timestamp;
 
 pub fn parse(s: &str) -> Result<APRSMessage, APRSError> {
